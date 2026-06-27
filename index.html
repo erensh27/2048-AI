@@ -2,102 +2,457 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>2048: SUPERCOMPUTER MODE</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 Engine: MAX OVERDRIVE</title>
     <style>
-        :root { --bg: #050505; --accent: #00f2ff; }
-        body { background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: 'Courier New', monospace; }
-        .grid-container { background: #111; width: 400px; height: 400px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 10px; border: 2px solid #333; }
-        .cell { background: #222; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; border-radius: 4px; }
-        button { background: var(--accent); color: black; border: none; padding: 15px 30px; font-weight: bold; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
-        #score { font-size: 2rem; color: var(--accent); margin-bottom: 10px; }
+        :root {
+            --bg-color: #0f0f13;
+            --panel-color: #1c1c24;
+            --grid-bg: #22222d;
+            --text-main: #ffffff;
+            --accent: #ff2a5f;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 450px;
+            width: 100%;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin: 0;
+            font-weight: 900;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .score-container {
+            background-color: var(--panel-color);
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-align: right;
+            border: 1px solid #333;
+        }
+
+        .score-label {
+            font-size: 0.75rem;
+            color: #888;
+            font-weight: bold;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00ffcc;
+        }
+
+        .grid-container {
+            background-color: var(--grid-bg);
+            width: 100%;
+            padding-top: 100%;
+            position: relative;
+            border-radius: 8px;
+            box-shadow: 0 0 40px rgba(255, 42, 95, 0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 2px solid #333;
+        }
+
+        .grid {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .cell {
+            background-color: #181820;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            font-weight: 900;
+            user-select: none;
+            /* Removed transitions so high-speed solving doesn't visually blur */
+        }
+
+        /* God-Tier Colors */
+        .tile-2 { background-color: #2b2b36; color: #aaa; }
+        .tile-4 { background-color: #3b3b4a; color: #ccc; }
+        .tile-8 { background-color: #55556b; color: #fff; }
+        .tile-16 { background-color: #725b73; color: #fff; }
+        .tile-32 { background-color: #8f5b73; color: #fff; }
+        .tile-64 { background-color: #ab5165; color: #fff; }
+        .tile-128 { background-color: #c94c59; color: #fff; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+        .tile-256 { background-color: #e6454a; color: #fff; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+        .tile-512 { background-color: #ff3a3a; color: #fff; box-shadow: 0 0 10px #ff3a3a; }
+        .tile-1024 { background-color: #ff2a5f; color: #fff; box-shadow: 0 0 15px #ff2a5f; }
+        .tile-2048 { background-color: #ff007f; color: #fff; box-shadow: 0 0 20px #ff007f; }
+        .tile-4096 { background-color: #d400ff; color: #fff; box-shadow: 0 0 25px #d400ff; }
+        .tile-8192 { background-color: #8800ff; color: #fff; box-shadow: 0 0 30px #8800ff; }
+        .tile-16384 { background-color: #0044ff; color: #fff; box-shadow: 0 0 35px #0044ff; }
+        .tile-32768 { background-color: #00ffcc; color: #000; box-shadow: 0 0 40px #00ffcc; }
+        .tile-65536 { background-color: #ffffff; color: #000; box-shadow: 0 0 50px #ffffff; }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(15, 15, 19, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .overlay.show { opacity: 1; pointer-events: auto; }
+
+        .overlay-text {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        button {
+            background-color: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background-color: #ff4d79;
+        }
+
+        .status-bar {
+            text-align: center;
+            color: #00ffcc;
+            font-size: 0.9rem;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
-    <div id="score">SCORE: 0</div>
-    <div class="grid-container" id="grid"></div>
-    <button id="start-btn">BOOT SEQUENCE (START AI)</button>
+
+    <div class="container">
+        <header>
+            <h1>AI Core</h1>
+            <div class="score-container">
+                <div class="score-label">COMPUTED SCORE</div>
+                <div class="score-value" id="score">0</div>
+            </div>
+        </header>
+
+        <div class="grid-container">
+            <div class="grid" id="grid-board"></div>
+            <div class="overlay" id="game-overlay">
+                <div class="overlay-text">Engine Halted</div>
+                <button id="retry-btn">Reboot Sequence</button>
+            </div>
+        </div>
+
+        <button id="start-btn">Start Engine</button>
+        <div class="status-bar" id="status-text">> Ready. Press Start Engine.</div>
+    </div>
 
     <script>
+        // --- HIGH PERFORMANCE ENGINE ARCHITECTURE ---
         let board = Array(4).fill().map(() => Array(4).fill(0));
-        let score = 0, running = false;
-        
-        // HEURISTIC: Snake Path + Extreme Corner Weighting
-        const W = [
-            [65536, 32768, 16384, 8192],
-            [512, 1024, 2048, 4096],
-            [256, 128, 64, 32],
-            [2, 4, 8, 16]
+        let score = 0;
+        let aiRunning = false;
+
+        const boardElement = document.getElementById('grid-board');
+        const scoreElement = document.getElementById('score');
+        const overlay = document.getElementById('game-overlay');
+
+        // Perfect Zig-Zag Snake Matrix: Forces the AI to lock the highest tile at [0][0] 
+        // and weave decreasing tiles back and forth downward.
+        const WEIGHT_MATRIX = [
+            [100000, 50000, 25000, 12000],
+            [800,    1500,  3000,  6000],
+            [400,    200,   100,   50],
+            [3,      6,     12,    25]
         ];
 
-        function init() { board = Array(4).fill().map(() => Array(4).fill(0)); addTile(); addTile(); render(); }
-        function addTile() { 
-            let empty = []; board.forEach((r,ri) => r.forEach((c,ci) => { if(c===0) empty.push({ri, ci}) }));
-            if(empty.length) { let s = empty[Math.floor(Math.random()*empty.length)]; board[s.ri][s.ci] = Math.random()<0.9?2:4; }
-        }
-        
-        function render() {
-            document.getElementById('grid').innerHTML = board.flat().map(v => `<div class="cell">${v || ''}</div>`).join('');
-            document.getElementById('score').innerText = 'SCORE: ' + score;
+        function initGame() {
+            board = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+            score = 0;
+            addRandomTile();
+            addRandomTile();
+            updateUI();
+            overlay.classList.remove('show');
+            if (!aiRunning) {
+                aiRunning = true;
+                stepAi();
+            }
         }
 
-        // ULTRA-FAST SLIDE
-        function move(m, dir) {
-            let res = JSON.parse(JSON.stringify(m));
-            let changed = false, pts = 0;
-            // Simplified slide logic for speed
-            for(let i=0; i<dir; i++) res = res[0].map((_, c) => res.map(r => r[c]).reverse());
+        function addRandomTile() {
+            let empties = [];
             for(let r=0; r<4; r++) {
-                let row = res[r].filter(v => v);
-                for(let i=0; i<row.length-1; i++) if(row[i]===row[i+1]) { row[i]*=2; pts+=row[i]; row.splice(i+1,1); changed=true; }
-                let newRow = row.concat(Array(4-row.length).fill(0));
-                if(newRow.join() !== res[r].join()) changed = true;
-                res[r] = newRow;
+                for(let c=0; c<4; c++) if(board[r][c] === 0) empties.push({r, c});
             }
-            for(let i=0; i<(4-dir)%4; i++) res = res[0].map((_, c) => res.map(r => r[c]).reverse());
-            return { m: res, changed, pts };
+            if(empties.length > 0) {
+                let spot = empties[Math.floor(Math.random() * empties.length)];
+                board[spot.r][spot.c] = Math.random() < 0.9 ? 2 : 4;
+            }
         }
 
-        function getScore(m) {
-            let s = 0, empty = 0;
-            for(let r=0; r<4; r++) for(let c=0; c<4; c++) {
-                if(m[r][c] === 0) empty++;
-                else s += m[r][c] * W[r][c];
-            }
-            return s + (empty * 10000);
-        }
+        function updateUI() {
+            boardElement.innerHTML = '';
+            scoreElement.textContent = score;
 
-        function expectimax(m, d) {
-            if(d === 0) return getScore(m);
-            let best = -Infinity;
-            for(let i=0; i<4; i++) {
-                let r = move(m, i);
-                if(r.changed) {
-                    let val = expectimax(r.m, d-1);
-                    if(val > best) best = val;
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<4; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    let val = board[r][c];
+                    if(val > 0) {
+                        cell.textContent = val;
+                        // Support extreme high numbers by dynamically clamping CSS classes
+                        let classVal = val <= 65536 ? val : 65536; 
+                        cell.classList.add(`tile-${classVal}`);
+                    }
+                    boardElement.appendChild(cell);
                 }
             }
-            return best === -Infinity ? getScore(m) : best;
         }
 
-        async function loop() {
-            if(!running) return;
-            let bestD = -1, bestV = -Infinity;
-            for(let i=0; i<4; i++) {
-                let r = move(board, i);
-                if(r.changed) {
-                    let v = expectimax(r.m, 5); // Depth 5 is the sweet spot for 50k+
-                    if(v > bestV) { bestV = v; bestD = i; }
+        // --- ULTRA FAST MATRIX MATH ---
+        // Avoids JSON parsing and Map functions entirely for thousands of times faster execution in deep trees.
+        function rotateRight(m) {
+            return [
+                [m[3][0], m[2][0], m[1][0], m[0][0]],
+                [m[3][1], m[2][1], m[1][1], m[0][1]],
+                [m[3][2], m[2][2], m[1][2], m[0][2]],
+                [m[3][3], m[2][3], m[1][3], m[0][3]]
+            ];
+        }
+
+        function slideLeftFast(grid) {
+            let gainedScore = 0;
+            let changed = false;
+            let newBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+
+            for (let r = 0; r < 4; r++) {
+                let colIdx = 0;
+                let lastMerged = false;
+                for (let c = 0; c < 4; c++) {
+                    if (grid[r][c] !== 0) {
+                        if (colIdx > 0 && newBoard[r][colIdx-1] === grid[r][c] && !lastMerged) {
+                            newBoard[r][colIdx-1] *= 2;
+                            gainedScore += newBoard[r][colIdx-1];
+                            changed = true;
+                            lastMerged = true;
+                        } else {
+                            newBoard[r][colIdx] = grid[r][c];
+                            if (colIdx !== c) changed = true;
+                            colIdx++;
+                            lastMerged = false;
+                        }
+                    }
                 }
             }
-            if(bestD !== -1) {
-                let r = move(board, bestD);
-                board = r.m; score += r.pts; addTile(); render();
-                setTimeout(loop, 0);
+            return { grid: newBoard, changed, scoreGained: gainedScore };
+        }
+
+        function executeMoveFast(matrix, dir) {
+            let temp = matrix;
+            for(let i=0; i<dir; i++) temp = rotateRight(temp);
+            
+            let res = slideLeftFast(temp);
+            
+            if (res.changed) {
+                let restores = (4 - dir) % 4;
+                for(let i=0; i<restores; i++) res.grid = rotateRight(res.grid);
+            }
+            return res;
+        }
+
+        function canMove(matrix) {
+            for (let d = 0; d < 4; d++) {
+                if (executeMoveFast(matrix, d).changed) return true;
+            }
+            return false;
+        }
+
+        // --- EXPECTIMAX ENGINE ---
+        function evaluateBoardHeuristic(matrix) {
+            let weightScore = 0;
+            let emptyCount = 0;
+            let maxTile = 0;
+            let maxR = 0, maxC = 0;
+
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    let val = matrix[r][c];
+                    if (val === 0) {
+                        emptyCount++;
+                        continue;
+                    }
+                    weightScore += val * WEIGHT_MATRIX[r][c];
+                    
+                    if (val > maxTile) {
+                        maxTile = val;
+                        maxR = r;
+                        maxC = c;
+                    }
+                }
+            }
+            
+            // Absolutely devastate the score if the AI accidentally shifts the biggest tile out of the corner.
+            if (maxR !== 0 || maxC !== 0) {
+                weightScore -= (maxTile * 500000); 
+            }
+
+            return weightScore + (emptyCount * 100000);
+        }
+
+        function expectimax(matrix, depth, isChanceNode) {
+            if (depth === 0) return evaluateBoardHeuristic(matrix);
+
+            if (!isChanceNode) {
+                let maxScore = -Infinity;
+                let moved = false;
+                for (let d = 0; d < 4; d++) {
+                    let res = executeMoveFast(matrix, d);
+                    if (res.changed) {
+                        moved = true;
+                        let score = expectimax(res.grid, depth - 1, true);
+                        if (score > maxScore) maxScore = score;
+                    }
+                }
+                return moved ? maxScore : evaluateBoardHeuristic(matrix);
+            } else {
+                let emptyCells = [];
+                for (let r = 0; r < 4; r++) {
+                    for (let c = 0; c < 4; c++) if (matrix[r][c] === 0) emptyCells.push({r, c});
+                }
+
+                if (emptyCells.length === 0) return evaluateBoardHeuristic(matrix);
+
+                let spotsToTest = emptyCells;
+                
+                // Deep search combinatoric pruning: Limit spawn checking when deep in the chance tree
+                if (depth > 3 && emptyCells.length > 2) {
+                    spotsToTest = [emptyCells[0], emptyCells[emptyCells.length - 1]]; 
+                }
+
+                let totalScore = 0;
+                for (let cell of spotsToTest) {
+                    matrix[cell.r][cell.c] = 2;
+                    totalScore += 0.9 * expectimax(matrix, depth - 1, false);
+                    
+                    matrix[cell.r][cell.c] = 4;
+                    totalScore += 0.1 * expectimax(matrix, depth - 1, false);
+                    
+                    matrix[cell.r][cell.c] = 0; // Revert mutation
+                }
+                return totalScore / spotsToTest.length;
             }
         }
 
-        document.getElementById('start-btn').onclick = () => { running = true; loop(); };
-        init();
+        function getBestMove() {
+            let bestMoveDirection = -1;
+            let bestScore = -Infinity;
+
+            let emptyCount = 0;
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<4; c++) if(board[r][c] === 0) emptyCount++;
+            }
+            
+            // Dynamic Adaptive Depth Mapping (The closer to death, the harder it thinks)
+            let calculatedDepth = emptyCount > 6 ? 4 : (emptyCount > 2 ? 6 : 7); 
+
+            for (let d = 0; d < 4; d++) {
+                let res = executeMoveFast(board, d);
+                if (res.changed) {
+                    let simulatedValue = expectimax(res.grid, calculatedDepth, true);
+                    if (simulatedValue > bestScore) {
+                        bestScore = simulatedValue;
+                        bestMoveDirection = d;
+                    }
+                }
+            }
+            return bestMoveDirection;
+        }
+
+        function stepAi() {
+            if (!aiRunning) return;
+            
+            let bestD = getBestMove();
+            if (bestD !== -1) {
+                let outcome = executeMoveFast(board, bestD);
+                board = outcome.grid;
+                score += outcome.scoreGained;
+                addRandomTile();
+                updateUI();
+                
+                if (canMove(board)) {
+                    // 0ms timeout removes blocking lag while keeping the browser rendering frames
+                    setTimeout(stepAi, 0); 
+                } else {
+                    aiRunning = false;
+                    overlay.classList.add('show');
+                }
+            } else {
+                aiRunning = false;
+                overlay.classList.add('show');
+            }
+        }
+
+        document.getElementById('retry-btn').addEventListener('click', initGame);
+
+        const startBtn = document.getElementById('start-btn');
+        startBtn.addEventListener('click', () => {
+            startBtn.style.display = 'none';
+            document.getElementById('status-text').textContent = '> Neural Net active. Optimizing grid layout...';
+            initGame();
+        });
+
+        // Wait for user to start.
     </script>
 </body>
 </html>
