@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 Algorithmic Playground: Human vs AI</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-color: #2d2d2d;
+            --grid-bg: #3d3d3d;
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #edc22e;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 420px;
+            width: 100%;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin: 0;
+            font-weight: bold;
+            color: var(--accent);
+            letter-spacing: 1px;
+        }
+
+        .score-container {
+            background-color: var(--panel-color);
+            padding: 10px 25px;
+            border-radius: 6px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .score-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: bold;
+        }
+
+        .score-value {
+            font-size: 1.6rem;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            background-color: var(--panel-color);
+            color: var(--text-main);
+            border: 2px solid transparent;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        button:hover {
+            border-color: var(--accent);
+            background-color: #383838;
+        }
+
+        button.active {
+            background-color: var(--accent);
+            color: #000;
+        }
+
+        .grid-container {
+            background-color: var(--grid-bg);
+            width: 100%;
+            padding-top: 100%; /* Perfect square trick */
+            position: relative;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        .grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 12px;
+            padding: 12px;
+        }
+
+        .cell {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            transition: all 0.1s ease-in-out;
+            user-select: none;
+        }
+
+        /* Distinct Color Mappings for 2048 Values */
+        .tile-2 { background-color: #eee4da; color: #776e65; }
+        .tile-4 { background-color: #ede0c8; color: #776e65; }
+        .tile-8 { background-color: #f2b179; color: #f9f6f2; }
+        .tile-16 { background-color: #f59563; color: #f9f6f2; }
+        .tile-32 { background-color: #f67c5f; color: #f9f6f2; }
+        .tile-64 { background-color: #f65e3b; color: #f9f6f2; }
+        .tile-128 { background-color: #edcf72; color: #f9f6f2; box-shadow: 0 0 10px #edcf72; }
+        .tile-256 { background-color: #edcc61; color: #f9f6f2; box-shadow: 0 0 12px #edcc61; }
+        .tile-512 { background-color: #edc850; color: #f9f6f2; box-shadow: 0 0 15px #edc850; }
+        .tile-1048, .tile-2048 { background-color: #edc22e; color: #f9f6f2; box-shadow: 0 0 20px #edc22e; }
+        .tile-super { background-color: #3c3a32; color: #f9f6f2; }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            border-radius: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .overlay-text {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--accent);
+        }
+
+        .status-bar {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            text-align: center;
+            color: var(--text-muted);
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div>
+                <h1>2048</h1>
+            </div>
+            <div class="score-container">
+                <div class="score-label">Score</div>
+                <div class="score-value" id="score">0</div>
+            </div>
+        </header>
+
+        <div class="controls">
+            <button id="reset-btn">Reset</button>
+            <button id="ai-btn">Run AI Solver</button>
+        </div>
+
+        <div class="grid-container">
+            <div class="grid" id="grid-board"></div>
+            <div class="overlay" id="game-overlay">
+                <div class="overlay-text" id="overlay-msg">Game Over</div>
+                <button id="retry-btn" style="max-width: 150px;">Try Again</button>
+            </div>
+        </div>
+
+        <div class="status-bar" id="status-text">Mode: Human Play (Use Arrow Keys)</div>
+    </div>
+
+    <script>
+        // --- GAME ENGINE SETUP ---
+        let board = Array(4).fill().map(() => Array(4).fill(0));
+        let score = 0;
+        let isAiRunning = false;
+        let aiTimer = null;
+
+        // Heuristic Weight Matrix favoring the Top-Left Corner Snake Strategy
+        const WEIGHT_MATRIX = [
+            [2048, 1024, 512, 256],
+            [16,   32,   64,  128],
+            [8,    4,    2,   1],
+            [0.5,  0.5,  0.5, 0.5]
+        ];
+
+        const boardElement = document.getElementById('grid-board');
+        const scoreElement = document.getElementById('score');
+        const aiButton = document.getElementById('ai-btn');
+        const resetButton = document.getElementById('reset-btn');
+        const retryButton = document.getElementById('retry-btn');
+        const overlay = document.getElementById('game-overlay');
+        const overlayMsg = document.getElementById('overlay-msg');
+        const statusText = document.getElementById('status-text');
+
+        function initGame() {
+            board = Array(4).fill().map(() => Array(4).fill(0));
+            score = 0;
+            stopAi();
+            addRandomTile();
+            addRandomTile();
+            updateUI();
+            overlay.classList.remove('show');
+        }
+
+        function addRandomTile() {
+            let empties = [];
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<4; c++) {
+                    if(board[r][c] === 0) empties.push({r, c});
+                }
+            }
+            if(empties.length > 0) {
+                let spot = empties[Math.floor(Math.random() * empties.length)];
+                board[spot.r][spot.c] = Math.random() < 0.9 ? 2 : 4;
+            }
+        }
+
+        function updateUI() {
+            boardElement.innerHTML = '';
+            scoreElement.textContent = score;
+
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<4; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    let val = board[r][c];
+                    if(val > 0) {
+                        cell.textContent = val;
+                        cell.classList.add(val <= 2048 ? `tile-${val}` : 'tile-super');
+                    }
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // --- CORE GRID TRANSLATION ALGORITHMS ---
+        // Isolating pure row shifting leftward to avoid duplicate direction blocks
+        function slideLeft(gridRow) {
+            let cleanRow = gridRow.filter(val => val !== 0);
+            let targetScore = 0;
+            for (let i = 0; i < cleanRow.length - 1; i++) {
+                if (cleanRow[i] === cleanRow[i+1]) {
+                    cleanRow[i] *= 2;
+                    targetScore += cleanRow[i];
+                    cleanRow[i+1] = 0;
+                }
+            }
+            cleanRow = cleanRow.filter(val => val !== 0);
+            while (cleanRow.length < 4) {
+                cleanRow.push(0);
+            }
+            return { row: cleanRow, gainedScore: targetScore };
+        }
+
+        function rotateMatrixClockwise(matrix) {
+            return matrix[0].map((val, index) => matrix.map(row => row[index]).reverse());
+        }
+
+        // Moves a target matrix board setup in 0=Left, 1=Up, 2=Right, 3=Down
+        function executeMove(matrix, direction) {
+            let tempBoard = JSON.parse(JSON.stringify(matrix));
+            let totalGainedScore = 0;
+
+            // Rotate grid until targeted action translates to a standard Left slide
+            for (let i = 0; i < direction; i++) {
+                tempBoard = rotateMatrixClockwise(tempBoard);
+            }
+
+            let modified = false;
+            for (let r = 0; r < 4; r++) {
+                let res = slideLeft(tempBoard[r]);
+                if (JSON.stringify(tempBoard[r]) !== JSON.stringify(res.row)) {
+                    modified = true;
+                }
+                tempBoard[r] = res.row;
+                totalGainedScore += res.gainedScore;
+            }
+
+            // Restore the grid to original orientation alignment
+            let cyclesNeeded = (4 - direction) % 4;
+            for (let i = 0; i < cyclesNeeded; i++) {
+                tempBoard = rotateMatrixClockwise(tempBoard);
+            }
+
+            return { grid: tempBoard, changed: modified, scoreGained: totalGainedScore };
+        }
+
+        function canMove(matrix) {
+            for (let d = 0; d < 4; d++) {
+                if (executeMove(matrix, d).changed) return true;
+            }
+            return false;
+        }
+
+        function checkGameStatuses() {
+            if (!canMove(board)) {
+                stopAi();
+                overlayMsg.textContent = "Game Over";
+                overlay.classList.add('show');
+            }
+        }
+
+        // --- EXPECTIMAX AI AGENT ENGINE ---
+        // Evaluates fitness of theoretical boards based on weights, empty cell availability, and structure continuity
+        function evaluateBoardHeuristic(matrix) {
+            let weightScore = 0;
+            let emptyBonus = 0;
+            let smoothnessPenalty = 0;
+
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    let val = matrix[r][c];
+                    if (val === 0) {
+                        emptyBonus += 25; // Heavily weight empty space retention
+                        continue;
+                    }
+                    
+                    weightScore += val * WEIGHT_MATRIX[r][c];
+
+                    // Smoothness calculations: check down and right neighbors
+                    if (r < 3 && matrix[r+1][c] > 0) {
+                        smoothnessPenalty -= Math.abs(Math.log2(val) - Math.log2(matrix[r+1][c]));
+                    }
+                    if (c < 3 && matrix[r][c+1] > 0) {
+                        smoothnessPenalty -= Math.abs(Math.log2(val) - Math.log2(matrix[r][c+1]));
+                    }
+                }
+            }
+            return weightScore + emptyBonus + (smoothnessPenalty * 10);
+        }
+
+        // Expectimax search tree loop
+        function expectimax(matrix, depth, isChanceNode) {
+            if (depth === 0 || (!isChanceNode && !canMove(matrix))) {
+                return evaluateBoardHeuristic(matrix);
+            }
+
+            if (!isChanceNode) {
+                // Maximizer Step: Player choosing optimal move path
+                let maxScore = -Infinity;
+                for (let d = 0; d < 4; d++) {
+                    let result = executeMove(matrix, d);
+                    if (result.changed) {
+                        let score = expectimax(result.grid, depth - 1, true);
+                        if (score > maxScore) maxScore = score;
+                    }
+                }
+                return maxScore === -Infinity ? evaluateBoardHeuristic(matrix) : maxScore;
+            } else {
+                // Chance Step: Probability distributions of spawning random tiles (90% for 2, 10% for 4)
+                let totalScore = 0;
+                let emptyCells = [];
+
+                for (let r = 0; r < 4; r++) {
+                    for (let c = 0; c < 4; c++) {
+                        if (matrix[r][c] === 0) emptyCells.push({r, c});
+                    }
+                }
+
+                if (emptyCells.length === 0) return evaluateBoardHeuristic(matrix);
+
+                for (let cell of emptyCells) {
+                    // Scenario A: Spawns a '2'
+                    matrix[cell.r][cell.c] = 2;
+                    totalScore += 0.9 * expectimax(matrix, depth - 1, false);
+
+                    // Scenario B: Spawns a '4'
+                    matrix[cell.r][cell.c] = 4;
+                    totalScore += 0.1 * expectimax(matrix, depth - 1, false);
+
+                    // Revert state tracking values
+                    matrix[cell.r][cell.c] = 0;
+                }
+
+                return totalScore / emptyCells.length;
+            }
+        }
+
+        function getBestMove() {
+            let bestMoveDirection = -1;
+            let bestScore = -Infinity;
+
+            // Compute ideal lookahead optimization paths. 
+            // Depth 3 balances performance safety margins well inside single JS loops
+            let calculatedDepth = 3; 
+
+            for (let d = 0; d < 4; d++) {
+                let res = executeMove(board, d);
+                if (res.changed) {
+                    let simulatedValue = expectimax(res.grid, calculatedDepth, true);
+                    if (simulatedValue > bestScore) {
+                        bestScore = simulatedValue;
+                        bestMoveDirection = d;
+                    }
+                }
+            }
+            return bestMoveDirection;
+        }
+
+        // --- CONTROLS AND LOOP TRIGGERS ---
+        function triggerHumanMove(direction) {
+            if (isAiRunning) return;
+            let outcome = executeMove(board, direction);
+            if (outcome.changed) {
+                board = outcome.grid;
+                score += outcome.scoreGained;
+                addRandomTile();
+                updateUI();
+                setTimeout(checkGameStatuses, 50);
+            }
+        }
+
+        function stepAi() {
+            if (!isAiRunning) return;
+            let bestD = getBestMove();
+            if (bestD !== -1) {
+                let outcome = executeMove(board, bestD);
+                board = outcome.grid;
+                score += outcome.scoreGained;
+                addRandomTile();
+                updateUI();
+                if (canMove(board)) {
+                    aiTimer = setTimeout(stepAi, 80); // Speed throttling between steps (80ms)
+                } else {
+                    checkGameStatuses();
+                }
+            } else {
+                checkGameStatuses();
+            }
+        }
+
+        function startAi() {
+            isAiRunning = true;
+            aiButton.textContent = "Pause AI Solver";
+            aiButton.classList.add('active');
+            statusText.textContent = "Mode: AI Engine actively optimizing grid...";
+            stepAi();
+        }
+
+        function stopAi() {
+            isAiRunning = false;
+            if (aiTimer) clearTimeout(aiTimer);
+            aiButton.textContent = "Run AI Solver";
+            aiButton.classList.remove('active');
+            statusText.textContent = "Mode: Human Play (Use Arrow Keys)";
+        }
+
+        // Event Handling Mappings
+        window.addEventListener('keydown', (e) => {
+            if (["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"].includes(e.key)) {
+                e.preventDefault(); 
+            }
+            if (e.key === "ArrowLeft")  triggerHumanMove(0);
+            if (e.key === "ArrowUp")    triggerHumanMove(1);
+            if (e.key === "ArrowRight") triggerHumanMove(2);
+            if (e.key === "ArrowDown")  triggerHumanMove(3);
+        });
+
+        aiButton.addEventListener('click', () => {
+            if (isAiRunning) stopAi();
+            else startAi();
+        });
+
+        resetButton.addEventListener('click', initGame);
+        retryButton.addEventListener('click', initGame);
+
+        // Run instantiation sequences upon frame generation
+        initGame();
+    </script>
+</body>
+</html>
