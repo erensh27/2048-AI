@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2048 Algorithmic Playground: Human vs AI</title>
+    <title>2048 AI: Dynamic Depth & Mobile</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -24,7 +24,8 @@
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
+            box-sizing: border-box;
         }
 
         .container {
@@ -40,7 +41,7 @@
         }
 
         h1 {
-            font-size: 3rem;
+            font-size: 2.5rem;
             margin: 0;
             font-weight: bold;
             color: var(--accent);
@@ -49,21 +50,21 @@
 
         .score-container {
             background-color: var(--panel-color);
-            padding: 10px 25px;
+            padding: 8px 20px;
             border-radius: 6px;
             text-align: center;
             min-width: 80px;
         }
 
         .score-label {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
             color: var(--text-muted);
             font-weight: bold;
         }
 
         .score-value {
-            font-size: 1.6rem;
+            font-size: 1.4rem;
             font-weight: bold;
         }
 
@@ -84,6 +85,8 @@
             cursor: pointer;
             transition: all 0.2s ease;
             font-size: 0.95rem;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         button:hover {
@@ -99,19 +102,17 @@
         .grid-container {
             background-color: var(--grid-bg);
             width: 100%;
-            padding-top: 100%; /* Perfect square trick */
+            padding-top: 100%;
             position: relative;
             border-radius: 8px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
             overflow: hidden;
+            margin-bottom: 15px;
         }
 
         .grid {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             grid-template-rows: repeat(4, 1fr);
@@ -131,17 +132,18 @@
             user-select: none;
         }
 
-        /* Distinct Color Mappings for 2048 Values */
+        /* Fixed Color Mappings */
         .tile-2 { background-color: #eee4da; color: #776e65; }
         .tile-4 { background-color: #ede0c8; color: #776e65; }
         .tile-8 { background-color: #f2b179; color: #f9f6f2; }
         .tile-16 { background-color: #f59563; color: #f9f6f2; }
         .tile-32 { background-color: #f67c5f; color: #f9f6f2; }
         .tile-64 { background-color: #f65e3b; color: #f9f6f2; }
-        .tile-128 { background-color: #edcf72; color: #f9f6f2; box-shadow: 0 0 10px #edcf72; }
-        .tile-256 { background-color: #edcc61; color: #f9f6f2; box-shadow: 0 0 12px #edcc61; }
-        .tile-512 { background-color: #edc850; color: #f9f6f2; box-shadow: 0 0 15px #edc850; }
-        .tile-1048, .tile-2048 { background-color: #edc22e; color: #f9f6f2; box-shadow: 0 0 20px #edc22e; }
+        .tile-128 { background-color: #edcf72; color: #f9f6f2; box-shadow: 0 0 10px rgba(237, 207, 114, 0.4); }
+        .tile-256 { background-color: #edcc61; color: #f9f6f2; box-shadow: 0 0 12px rgba(237, 204, 97, 0.5); }
+        .tile-512 { background-color: #edc850; color: #f9f6f2; box-shadow: 0 0 15px rgba(237, 200, 80, 0.6); }
+        .tile-1024 { background-color: #edc53f; color: #f9f6f2; box-shadow: 0 0 18px rgba(237, 197, 63, 0.7); }
+        .tile-2048 { background-color: #edc22e; color: #f9f6f2; box-shadow: 0 0 22px rgba(237, 194, 46, 0.8); }
         .tile-super { background-color: #3c3a32; color: #f9f6f2; }
 
         .overlay {
@@ -159,10 +161,7 @@
             transition: opacity 0.3s ease;
         }
 
-        .overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
+        .overlay.show { opacity: 1; pointer-events: auto; }
 
         .overlay-text {
             font-size: 2.5rem;
@@ -172,11 +171,47 @@
         }
 
         .status-bar {
-            margin-top: 15px;
             font-size: 0.9rem;
             text-align: center;
             color: var(--text-muted);
-            min-height: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* D-Pad Controls for Mobile */
+        .d-pad {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .d-pad-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dir-btn {
+            width: 55px;
+            height: 55px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--panel-color);
+            border-radius: 12px;
+            color: var(--text-main);
+            border: 2px solid #444;
+        }
+
+        .dir-btn:active {
+            background-color: #444;
+            border-color: var(--accent);
+        }
+
+        /* Hide D-Pad on larger screens if desired, but kept visible here for universal access */
+        @media (min-width: 600px) {
+            .d-pad { margin-top: 10px; }
         }
     </style>
 </head>
@@ -184,9 +219,7 @@
 
     <div class="container">
         <header>
-            <div>
-                <h1>2048</h1>
-            </div>
+            <div><h1>2048</h1></div>
             <div class="score-container">
                 <div class="score-label">Score</div>
                 <div class="score-value" id="score">0</div>
@@ -194,7 +227,7 @@
         </header>
 
         <div class="controls">
-            <button id="reset-btn">Reset</button>
+            <button id="reset-btn">Reset Game</button>
             <button id="ai-btn">Run AI Solver</button>
         </div>
 
@@ -206,7 +239,18 @@
             </div>
         </div>
 
-        <div class="status-bar" id="status-text">Mode: Human Play (Use Arrow Keys)</div>
+        <div class="status-bar" id="status-text">Mode: Human Play (Use Arrows/D-Pad)</div>
+
+        <div class="d-pad">
+            <div class="d-pad-row">
+                <button class="dir-btn" id="btn-up">&#8593;</button>
+            </div>
+            <div class="d-pad-row">
+                <button class="dir-btn" id="btn-left">&#8592;</button>
+                <button class="dir-btn" id="btn-down">&#8595;</button>
+                <button class="dir-btn" id="btn-right">&#8594;</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -216,7 +260,6 @@
         let isAiRunning = false;
         let aiTimer = null;
 
-        // Heuristic Weight Matrix favoring the Top-Left Corner Snake Strategy
         const WEIGHT_MATRIX = [
             [2048, 1024, 512, 256],
             [16,   32,   64,  128],
@@ -227,8 +270,6 @@
         const boardElement = document.getElementById('grid-board');
         const scoreElement = document.getElementById('score');
         const aiButton = document.getElementById('ai-btn');
-        const resetButton = document.getElementById('reset-btn');
-        const retryButton = document.getElementById('retry-btn');
         const overlay = document.getElementById('game-overlay');
         const overlayMsg = document.getElementById('overlay-msg');
         const statusText = document.getElementById('status-text');
@@ -246,9 +287,7 @@
         function addRandomTile() {
             let empties = [];
             for(let r=0; r<4; r++) {
-                for(let c=0; c<4; c++) {
-                    if(board[r][c] === 0) empties.push({r, c});
-                }
+                for(let c=0; c<4; c++) if(board[r][c] === 0) empties.push({r, c});
             }
             if(empties.length > 0) {
                 let spot = empties[Math.floor(Math.random() * empties.length)];
@@ -275,7 +314,6 @@
         }
 
         // --- CORE GRID TRANSLATION ALGORITHMS ---
-        // Isolating pure row shifting leftward to avoid duplicate direction blocks
         function slideLeft(gridRow) {
             let cleanRow = gridRow.filter(val => val !== 0);
             let targetScore = 0;
@@ -287,9 +325,7 @@
                 }
             }
             cleanRow = cleanRow.filter(val => val !== 0);
-            while (cleanRow.length < 4) {
-                cleanRow.push(0);
-            }
+            while (cleanRow.length < 4) cleanRow.push(0);
             return { row: cleanRow, gainedScore: targetScore };
         }
 
@@ -297,31 +333,22 @@
             return matrix[0].map((val, index) => matrix.map(row => row[index]).reverse());
         }
 
-        // Moves a target matrix board setup in 0=Left, 1=Up, 2=Right, 3=Down
         function executeMove(matrix, direction) {
             let tempBoard = JSON.parse(JSON.stringify(matrix));
             let totalGainedScore = 0;
 
-            // Rotate grid until targeted action translates to a standard Left slide
-            for (let i = 0; i < direction; i++) {
-                tempBoard = rotateMatrixClockwise(tempBoard);
-            }
+            for (let i = 0; i < direction; i++) tempBoard = rotateMatrixClockwise(tempBoard);
 
             let modified = false;
             for (let r = 0; r < 4; r++) {
                 let res = slideLeft(tempBoard[r]);
-                if (JSON.stringify(tempBoard[r]) !== JSON.stringify(res.row)) {
-                    modified = true;
-                }
+                if (JSON.stringify(tempBoard[r]) !== JSON.stringify(res.row)) modified = true;
                 tempBoard[r] = res.row;
                 totalGainedScore += res.gainedScore;
             }
 
-            // Restore the grid to original orientation alignment
             let cyclesNeeded = (4 - direction) % 4;
-            for (let i = 0; i < cyclesNeeded; i++) {
-                tempBoard = rotateMatrixClockwise(tempBoard);
-            }
+            for (let i = 0; i < cyclesNeeded; i++) tempBoard = rotateMatrixClockwise(tempBoard);
 
             return { grid: tempBoard, changed: modified, scoreGained: totalGainedScore };
         }
@@ -341,43 +368,28 @@
             }
         }
 
-        // --- EXPECTIMAX AI AGENT ENGINE ---
-        // Evaluates fitness of theoretical boards based on weights, empty cell availability, and structure continuity
+        // --- DYNAMIC EXPECTIMAX AI ENGINE ---
         function evaluateBoardHeuristic(matrix) {
-            let weightScore = 0;
-            let emptyBonus = 0;
-            let smoothnessPenalty = 0;
-
+            let weightScore = 0, emptyBonus = 0, smoothnessPenalty = 0;
             for (let r = 0; r < 4; r++) {
                 for (let c = 0; c < 4; c++) {
                     let val = matrix[r][c];
                     if (val === 0) {
-                        emptyBonus += 25; // Heavily weight empty space retention
+                        emptyBonus += 50; 
                         continue;
                     }
-                    
                     weightScore += val * WEIGHT_MATRIX[r][c];
-
-                    // Smoothness calculations: check down and right neighbors
-                    if (r < 3 && matrix[r+1][c] > 0) {
-                        smoothnessPenalty -= Math.abs(Math.log2(val) - Math.log2(matrix[r+1][c]));
-                    }
-                    if (c < 3 && matrix[r][c+1] > 0) {
-                        smoothnessPenalty -= Math.abs(Math.log2(val) - Math.log2(matrix[r][c+1]));
-                    }
+                    if (r < 3 && matrix[r+1][c] > 0) smoothnessPenalty -= Math.abs(Math.log2(val) - Math.log2(matrix[r+1][c]));
+                    if (c < 3 && matrix[r][c+1] > 0) smoothnessPenalty -= Math.abs(Math.log2(val) - Math.log2(matrix[r][c+1]));
                 }
             }
-            return weightScore + emptyBonus + (smoothnessPenalty * 10);
+            return weightScore + emptyBonus + (smoothnessPenalty * 15); // Increased structural penalty weight
         }
 
-        // Expectimax search tree loop
         function expectimax(matrix, depth, isChanceNode) {
-            if (depth === 0 || (!isChanceNode && !canMove(matrix))) {
-                return evaluateBoardHeuristic(matrix);
-            }
+            if (depth === 0 || (!isChanceNode && !canMove(matrix))) return evaluateBoardHeuristic(matrix);
 
             if (!isChanceNode) {
-                // Maximizer Step: Player choosing optimal move path
                 let maxScore = -Infinity;
                 for (let d = 0; d < 4; d++) {
                     let result = executeMove(matrix, d);
@@ -388,32 +400,25 @@
                 }
                 return maxScore === -Infinity ? evaluateBoardHeuristic(matrix) : maxScore;
             } else {
-                // Chance Step: Probability distributions of spawning random tiles (90% for 2, 10% for 4)
                 let totalScore = 0;
                 let emptyCells = [];
-
                 for (let r = 0; r < 4; r++) {
-                    for (let c = 0; c < 4; c++) {
-                        if (matrix[r][c] === 0) emptyCells.push({r, c});
-                    }
+                    for (let c = 0; c < 4; c++) if (matrix[r][c] === 0) emptyCells.push({r, c});
                 }
 
                 if (emptyCells.length === 0) return evaluateBoardHeuristic(matrix);
 
-                for (let cell of emptyCells) {
-                    // Scenario A: Spawns a '2'
+                // Optimization: To save heavy computation deep in the tree, only test a few random empty spots, not all
+                let spotsToTest = emptyCells.length > 4 ? emptyCells.sort(() => 0.5 - Math.random()).slice(0, 4) : emptyCells;
+
+                for (let cell of spotsToTest) {
                     matrix[cell.r][cell.c] = 2;
                     totalScore += 0.9 * expectimax(matrix, depth - 1, false);
-
-                    // Scenario B: Spawns a '4'
                     matrix[cell.r][cell.c] = 4;
                     totalScore += 0.1 * expectimax(matrix, depth - 1, false);
-
-                    // Revert state tracking values
                     matrix[cell.r][cell.c] = 0;
                 }
-
-                return totalScore / emptyCells.length;
+                return totalScore / spotsToTest.length;
             }
         }
 
@@ -421,9 +426,14 @@
             let bestMoveDirection = -1;
             let bestScore = -Infinity;
 
-            // Compute ideal lookahead optimization paths. 
-            // Depth 3 balances performance safety margins well inside single JS loops
-            let calculatedDepth = 3; 
+            // DYNAMIC DEPTH: Count empty cells to adjust AI intelligence on the fly
+            let emptyCount = 0;
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<4; c++) if(board[r][c] === 0) emptyCount++;
+            }
+            
+            // Search deeper if the board is getting full to avoid traps
+            let calculatedDepth = emptyCount <= 3 ? 4 : 3; 
 
             for (let d = 0; d < 4; d++) {
                 let res = executeMove(board, d);
@@ -461,7 +471,8 @@
                 addRandomTile();
                 updateUI();
                 if (canMove(board)) {
-                    aiTimer = setTimeout(stepAi, 80); // Speed throttling between steps (80ms)
+                    // Small delay so the human eye can track the movement
+                    aiTimer = setTimeout(stepAi, 70); 
                 } else {
                     checkGameStatuses();
                 }
@@ -483,29 +494,27 @@
             if (aiTimer) clearTimeout(aiTimer);
             aiButton.textContent = "Run AI Solver";
             aiButton.classList.remove('active');
-            statusText.textContent = "Mode: Human Play (Use Arrow Keys)";
+            statusText.textContent = "Mode: Human Play (Use Arrows/D-Pad)";
         }
 
-        // Event Handling Mappings
+        // Event Handling
         window.addEventListener('keydown', (e) => {
-            if (["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"].includes(e.key)) {
-                e.preventDefault(); 
-            }
+            if (["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"].includes(e.key)) e.preventDefault(); 
             if (e.key === "ArrowLeft")  triggerHumanMove(0);
             if (e.key === "ArrowUp")    triggerHumanMove(1);
             if (e.key === "ArrowRight") triggerHumanMove(2);
             if (e.key === "ArrowDown")  triggerHumanMove(3);
         });
 
-        aiButton.addEventListener('click', () => {
-            if (isAiRunning) stopAi();
-            else startAi();
-        });
+        document.getElementById('btn-left').addEventListener('click', () => triggerHumanMove(0));
+        document.getElementById('btn-up').addEventListener('click', () => triggerHumanMove(1));
+        document.getElementById('btn-right').addEventListener('click', () => triggerHumanMove(2));
+        document.getElementById('btn-down').addEventListener('click', () => triggerHumanMove(3));
 
-        resetButton.addEventListener('click', initGame);
-        retryButton.addEventListener('click', initGame);
+        aiButton.addEventListener('click', () => { isAiRunning ? stopAi() : startAi(); });
+        document.getElementById('reset-btn').addEventListener('click', initGame);
+        document.getElementById('retry-btn').addEventListener('click', initGame);
 
-        // Run instantiation sequences upon frame generation
         initGame();
     </script>
 </body>
