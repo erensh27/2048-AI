@@ -1,458 +1,571 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2048 Engine: MAX OVERDRIVE</title>
-    <style>
-        :root {
-            --bg-color: #0f0f13;
-            --panel-color: #1c1c24;
-            --grid-bg: #22222d;
-            --text-main: #ffffff;
-            --accent: #ff2a5f;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2048 AI Core</title>
+<style>
+:root {
+  --bg-color: #0f0f13;
+  --panel-color: #1c1c24;
+  --grid-bg: #22222d;
+  --text-main: #ffffff;
+  --accent: #ff2a5f;
+  --accent-hover: #ff4d79;
+  --teal: #00ffcc;
+}
 
-        body {
-            font-family: 'Courier New', Courier, monospace;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 15px;
-            box-sizing: border-box;
-        }
+* { box-sizing: border-box; }
 
-        .container {
-            max-width: 450px;
-            width: 100%;
-        }
+body {
+  font-family: 'Courier New', Courier, monospace;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 15px;
+}
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
+.container {
+  max-width: 450px;
+  width: 100%;
+}
 
-        h1 {
-            font-size: 2.2rem;
-            margin: 0;
-            font-weight: 900;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+}
 
-        .score-container {
-            background-color: var(--panel-color);
-            padding: 10px 20px;
-            border-radius: 4px;
-            text-align: right;
-            border: 1px solid #333;
-        }
+h1 {
+  font-size: 2rem;
+  margin: 0;
+  font-weight: 900;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  flex-shrink: 0;
+}
 
-        .score-label {
-            font-size: 0.75rem;
-            color: #888;
-            font-weight: bold;
-        }
+.scores {
+  display: flex;
+  gap: 10px;
+}
 
-        .score-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #00ffcc;
-        }
+.score-box {
+  background-color: var(--panel-color);
+  padding: 8px 16px;
+  border-radius: 4px;
+  text-align: center;
+  border: 1px solid #333;
+  min-width: 80px;
+}
 
-        .grid-container {
-            background-color: var(--grid-bg);
-            width: 100%;
-            padding-top: 100%;
-            position: relative;
-            border-radius: 8px;
-            box-shadow: 0 0 40px rgba(255, 42, 95, 0.1);
-            overflow: hidden;
-            margin-bottom: 20px;
-            border: 2px solid #333;
-        }
+.score-label {
+  font-size: 0.65rem;
+  color: #888;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
 
-        .grid {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-template-rows: repeat(4, 1fr);
-            gap: 10px;
-            padding: 10px;
-        }
+.score-value {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--teal);
+  line-height: 1.2;
+}
 
-        .cell {
-            background-color: #181820;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.6rem;
-            font-weight: 900;
-            user-select: none;
-            /* Removed transitions so high-speed solving doesn't visually blur */
-        }
+.grid-container {
+  background-color: var(--grid-bg);
+  width: 100%;
+  padding-top: 100%;
+  position: relative;
+  border-radius: 8px;
+  box-shadow: 0 0 40px rgba(255, 42, 95, 0.1);
+  overflow: hidden;
+  margin-bottom: 16px;
+  border: 2px solid #333;
+}
 
-        /* God-Tier Colors */
-        .tile-2 { background-color: #2b2b36; color: #aaa; }
-        .tile-4 { background-color: #3b3b4a; color: #ccc; }
-        .tile-8 { background-color: #55556b; color: #fff; }
-        .tile-16 { background-color: #725b73; color: #fff; }
-        .tile-32 { background-color: #8f5b73; color: #fff; }
-        .tile-64 { background-color: #ab5165; color: #fff; }
-        .tile-128 { background-color: #c94c59; color: #fff; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
-        .tile-256 { background-color: #e6454a; color: #fff; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
-        .tile-512 { background-color: #ff3a3a; color: #fff; box-shadow: 0 0 10px #ff3a3a; }
-        .tile-1024 { background-color: #ff2a5f; color: #fff; box-shadow: 0 0 15px #ff2a5f; }
-        .tile-2048 { background-color: #ff007f; color: #fff; box-shadow: 0 0 20px #ff007f; }
-        .tile-4096 { background-color: #d400ff; color: #fff; box-shadow: 0 0 25px #d400ff; }
-        .tile-8192 { background-color: #8800ff; color: #fff; box-shadow: 0 0 30px #8800ff; }
-        .tile-16384 { background-color: #0044ff; color: #fff; box-shadow: 0 0 35px #0044ff; }
-        .tile-32768 { background-color: #00ffcc; color: #000; box-shadow: 0 0 40px #00ffcc; }
-        .tile-65536 { background-color: #ffffff; color: #000; box-shadow: 0 0 50px #ffffff; }
+.grid {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 10px;
+  padding: 10px;
+}
 
-        .overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(15, 15, 19, 0.9);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-            opacity: 0;
-            pointer-events: none;
-        }
+.cell {
+  background-color: #181820;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 900;
+  user-select: none;
+}
 
-        .overlay.show { opacity: 1; pointer-events: auto; }
+.tile-2    { background-color: #2b2b36; color: #aaa; }
+.tile-4    { background-color: #3b3b4a; color: #ccc; }
+.tile-8    { background-color: #55556b; color: #fff; }
+.tile-16   { background-color: #725b73; color: #fff; }
+.tile-32   { background-color: #8f5b73; color: #fff; }
+.tile-64   { background-color: #ab5165; color: #fff; }
+.tile-128  { background-color: #c94c59; color: #fff; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+.tile-256  { background-color: #e6454a; color: #fff; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+.tile-512  { background-color: #ff3a3a; color: #fff; box-shadow: 0 0 10px #ff3a3a; }
+.tile-1024 { background-color: #ff2a5f; color: #fff; box-shadow: 0 0 15px #ff2a5f; }
+.tile-2048 { background-color: #ff007f; color: #fff; box-shadow: 0 0 20px #ff007f; }
+.tile-4096 { background-color: #d400ff; color: #fff; box-shadow: 0 0 25px #d400ff; }
+.tile-8192 { background-color: #8800ff; color: #fff; box-shadow: 0 0 30px #8800ff; }
+.tile-16384 { background-color: #0044ff; color: #fff; box-shadow: 0 0 35px #0044ff; }
+.tile-32768 { background-color: #00ffcc; color: #000; box-shadow: 0 0 40px #00ffcc; }
+.tile-65536 { background-color: #ffffff; color: #000; box-shadow: 0 0 50px #ffffff; }
 
-        .overlay-text {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: var(--accent);
-            text-transform: uppercase;
-        }
+/* overlay */
+.overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(15, 15, 19, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
 
-        button {
-            background-color: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-family: inherit;
-            cursor: pointer;
-            font-size: 1.1rem;
-            text-transform: uppercase;
-        }
+.overlay.show { opacity: 1; pointer-events: auto; }
 
-        button:hover {
-            background-color: #ff4d79;
-        }
+.overlay-title {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
 
-        .status-bar {
-            text-align: center;
-            color: #00ffcc;
-            font-size: 0.9rem;
-            animation: pulse 1s infinite;
-        }
+.overlay-score {
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 24px;
+}
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-    </style>
+.overlay-score span {
+  color: var(--teal);
+  font-weight: bold;
+}
+
+/* controls row */
+.controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.btn {
+  flex: 1;
+  background-color: var(--panel-color);
+  color: #fff;
+  border: 1px solid #444;
+  padding: 11px 16px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-family: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.btn:hover { background-color: #2a2a38; border-color: #666; }
+
+.btn.primary {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.btn.primary:hover { background-color: var(--accent-hover); border-color: var(--accent-hover); }
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* status */
+.status-bar {
+  text-align: center;
+  color: #555;
+  font-size: 0.8rem;
+  min-height: 1.2em;
+  transition: color 0.3s;
+}
+
+.status-bar.active { color: var(--teal); }
+.status-bar.warn   { color: var(--accent); }
+</style>
 </head>
 <body>
-
-    <div class="container">
-        <header>
-            <h1>AI Core</h1>
-            <div class="score-container">
-                <div class="score-label">COMPUTED SCORE</div>
-                <div class="score-value" id="score">0</div>
-            </div>
-        </header>
-
-        <div class="grid-container">
-            <div class="grid" id="grid-board"></div>
-            <div class="overlay" id="game-overlay">
-                <div class="overlay-text">Engine Halted</div>
-                <button id="retry-btn">Reboot Sequence</button>
-            </div>
-        </div>
-
-        <button id="start-btn">Start Engine</button>
-        <div class="status-bar" id="status-text">> Ready. Press Start Engine.</div>
+<div class="container">
+  <header>
+    <h1>AI Core</h1>
+    <div class="scores">
+      <div class="score-box">
+        <div class="score-label">Score</div>
+        <div class="score-value" id="score">0</div>
+      </div>
+      <div class="score-box">
+        <div class="score-label">Best</div>
+        <div class="score-value" id="best-score">0</div>
+      </div>
     </div>
+  </header>
 
-    <script>
-        // --- HIGH PERFORMANCE ENGINE ARCHITECTURE ---
-        let board = Array(4).fill().map(() => Array(4).fill(0));
-        let score = 0;
-        let aiRunning = false;
+  <div class="grid-container">
+    <div class="grid" id="grid-board"></div>
+    <div class="overlay" id="game-overlay">
+      <div class="overlay-title">Engine Halted</div>
+      <div class="overlay-score">Final score: <span id="final-score">0</span></div>
+      <button class="btn primary" id="overlay-restart-btn">Reboot</button>
+    </div>
+  </div>
 
-        const boardElement = document.getElementById('grid-board');
-        const scoreElement = document.getElementById('score');
-        const overlay = document.getElementById('game-overlay');
+  <div class="controls">
+    <button class="btn primary" id="start-btn">Start Engine</button>
+    <button class="btn" id="restart-btn" style="display:none">Restart</button>
+  </div>
 
-        // Perfect Zig-Zag Snake Matrix: Forces the AI to lock the highest tile at [0][0] 
-        // and weave decreasing tiles back and forth downward.
-        const WEIGHT_MATRIX = [
-            [100000, 50000, 25000, 12000],
-            [800,    1500,  3000,  6000],
-            [400,    200,   100,   50],
-            [3,      6,     12,    25]
-        ];
+  <div class="status-bar" id="status-text">Ready — press Start Engine</div>
+</div>
 
-        function initGame() {
-            board = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
-            score = 0;
-            addRandomTile();
-            addRandomTile();
-            updateUI();
-            overlay.classList.remove('show');
-            if (!aiRunning) {
-                aiRunning = true;
-                stepAi();
-            }
-        }
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let board = Array(4).fill(null).map(() => Array(4).fill(0));
+let score = 0;
+let bestScore = 0;
+let aiRunning = false;
+let aiTimer = null;
 
-        function addRandomTile() {
-            let empties = [];
-            for(let r=0; r<4; r++) {
-                for(let c=0; c<4; c++) if(board[r][c] === 0) empties.push({r, c});
-            }
-            if(empties.length > 0) {
-                let spot = empties[Math.floor(Math.random() * empties.length)];
-                board[spot.r][spot.c] = Math.random() < 0.9 ? 2 : 4;
-            }
-        }
+const boardEl    = document.getElementById('grid-board');
+const scoreEl    = document.getElementById('score');
+const bestEl     = document.getElementById('best-score');
+const finalEl    = document.getElementById('final-score');
+const overlay    = document.getElementById('game-overlay');
+const statusEl   = document.getElementById('status-text');
+const startBtn   = document.getElementById('start-btn');
+const restartBtn = document.getElementById('restart-btn');
 
-        function updateUI() {
-            boardElement.innerHTML = '';
-            scoreElement.textContent = score;
+// ─── WEIGHT MATRIX (snake pattern, big tile locked to [0][0]) ────────────────
+const WEIGHT_MATRIX = [
+  [1<<17, 1<<16, 1<<15, 1<<14],
+  [1<<9,  1<<10, 1<<11, 1<<12],
+  [1<<8,  1<<7,  1<<6,  1<<5],
+  [1<<1,  1<<2,  1<<3,  1<<4]
+];
 
-            for(let r=0; r<4; r++) {
-                for(let c=0; c<4; c++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    let val = board[r][c];
-                    if(val > 0) {
-                        cell.textContent = val;
-                        // Support extreme high numbers by dynamically clamping CSS classes
-                        let classVal = val <= 65536 ? val : 65536; 
-                        cell.classList.add(`tile-${classVal}`);
-                    }
-                    boardElement.appendChild(cell);
-                }
-            }
-        }
+// ─── GAME LOGIC ───────────────────────────────────────────────────────────────
+function initGame() {
+  board = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+  score = 0;
+  overlay.classList.remove('show');
+  addRandomTile();
+  addRandomTile();
+  updateUI();
+  setStatus('Neural net active — optimizing…', 'active');
 
-        // --- ULTRA FAST MATRIX MATH ---
-        // Avoids JSON parsing and Map functions entirely for thousands of times faster execution in deep trees.
-        function rotateRight(m) {
-            return [
-                [m[3][0], m[2][0], m[1][0], m[0][0]],
-                [m[3][1], m[2][1], m[1][1], m[0][1]],
-                [m[3][2], m[2][2], m[1][2], m[0][2]],
-                [m[3][3], m[2][3], m[1][3], m[0][3]]
-            ];
-        }
+  if (!aiRunning) {
+    aiRunning = true;
+    scheduleStep();
+  }
+}
 
-        function slideLeftFast(grid) {
-            let gainedScore = 0;
-            let changed = false;
-            let newBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+function addRandomTile() {
+  const empties = [];
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++)
+      if (board[r][c] === 0) empties.push({r, c});
+  if (!empties.length) return;
+  const spot = empties[Math.floor(Math.random() * empties.length)];
+  board[spot.r][spot.c] = Math.random() < 0.9 ? 2 : 4;
+}
 
-            for (let r = 0; r < 4; r++) {
-                let colIdx = 0;
-                let lastMerged = false;
-                for (let c = 0; c < 4; c++) {
-                    if (grid[r][c] !== 0) {
-                        if (colIdx > 0 && newBoard[r][colIdx-1] === grid[r][c] && !lastMerged) {
-                            newBoard[r][colIdx-1] *= 2;
-                            gainedScore += newBoard[r][colIdx-1];
-                            changed = true;
-                            lastMerged = true;
-                        } else {
-                            newBoard[r][colIdx] = grid[r][c];
-                            if (colIdx !== c) changed = true;
-                            colIdx++;
-                            lastMerged = false;
-                        }
-                    }
-                }
-            }
-            return { grid: newBoard, changed, scoreGained: gainedScore };
-        }
+function updateUI() {
+  boardEl.innerHTML = '';
+  scoreEl.textContent = score;
+  if (score > bestScore) {
+    bestScore = score;
+    bestEl.textContent = bestScore;
+  }
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const val = board[r][c];
+      if (val > 0) {
+        cell.textContent = val;
+        cell.classList.add(`tile-${Math.min(val, 65536)}`);
+      }
+      boardEl.appendChild(cell);
+    }
+  }
+}
 
-        function executeMoveFast(matrix, dir) {
-            let temp = matrix;
-            for(let i=0; i<dir; i++) temp = rotateRight(temp);
-            
-            let res = slideLeftFast(temp);
-            
-            if (res.changed) {
-                let restores = (4 - dir) % 4;
-                for(let i=0; i<restores; i++) res.grid = rotateRight(res.grid);
-            }
-            return res;
-        }
+function setStatus(msg, cls = '') {
+  statusEl.textContent = msg;
+  statusEl.className = 'status-bar' + (cls ? ' ' + cls : '');
+}
 
-        function canMove(matrix) {
-            for (let d = 0; d < 4; d++) {
-                if (executeMoveFast(matrix, d).changed) return true;
-            }
-            return false;
-        }
+// ─── FAST MATRIX MATH ─────────────────────────────────────────────────────────
+function rotateRight(m) {
+  return [
+    [m[3][0], m[2][0], m[1][0], m[0][0]],
+    [m[3][1], m[2][1], m[1][1], m[0][1]],
+    [m[3][2], m[2][2], m[1][2], m[0][2]],
+    [m[3][3], m[2][3], m[1][3], m[0][3]]
+  ];
+}
 
-        // --- EXPECTIMAX ENGINE ---
-        function evaluateBoardHeuristic(matrix) {
-            let weightScore = 0;
-            let emptyCount = 0;
-            let maxTile = 0;
-            let maxR = 0, maxC = 0;
+function slideLeftFast(grid) {
+  let gained = 0, changed = false;
+  const nb = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+  for (let r = 0; r < 4; r++) {
+    let col = 0, lastMerged = false;
+    for (let c = 0; c < 4; c++) {
+      const v = grid[r][c];
+      if (!v) continue;
+      if (col > 0 && nb[r][col-1] === v && !lastMerged) {
+        nb[r][col-1] = v * 2;
+        gained += v * 2;
+        changed = true;
+        lastMerged = true;
+      } else {
+        nb[r][col] = v;
+        if (col !== c) changed = true;
+        col++;
+        lastMerged = false;
+      }
+    }
+  }
+  return { grid: nb, changed, scoreGained: gained };
+}
 
-            for (let r = 0; r < 4; r++) {
-                for (let c = 0; c < 4; c++) {
-                    let val = matrix[r][c];
-                    if (val === 0) {
-                        emptyCount++;
-                        continue;
-                    }
-                    weightScore += val * WEIGHT_MATRIX[r][c];
-                    
-                    if (val > maxTile) {
-                        maxTile = val;
-                        maxR = r;
-                        maxC = c;
-                    }
-                }
-            }
-            
-            // Absolutely devastate the score if the AI accidentally shifts the biggest tile out of the corner.
-            if (maxR !== 0 || maxC !== 0) {
-                weightScore -= (maxTile * 500000); 
-            }
+function executeMove(matrix, dir) {
+  let temp = matrix;
+  for (let i = 0; i < dir; i++) temp = rotateRight(temp);
+  const res = slideLeftFast(temp);
+  if (res.changed) {
+    const back = (4 - dir) % 4;
+    for (let i = 0; i < back; i++) res.grid = rotateRight(res.grid);
+  }
+  return res;
+}
 
-            return weightScore + (emptyCount * 100000);
-        }
+function canMove(matrix) {
+  for (let d = 0; d < 4; d++) if (executeMove(matrix, d).changed) return true;
+  return false;
+}
 
-        function expectimax(matrix, depth, isChanceNode) {
-            if (depth === 0) return evaluateBoardHeuristic(matrix);
+// ─── HEURISTICS ───────────────────────────────────────────────────────────────
 
-            if (!isChanceNode) {
-                let maxScore = -Infinity;
-                let moved = false;
-                for (let d = 0; d < 4; d++) {
-                    let res = executeMoveFast(matrix, d);
-                    if (res.changed) {
-                        moved = true;
-                        let score = expectimax(res.grid, depth - 1, true);
-                        if (score > maxScore) maxScore = score;
-                    }
-                }
-                return moved ? maxScore : evaluateBoardHeuristic(matrix);
-            } else {
-                let emptyCells = [];
-                for (let r = 0; r < 4; r++) {
-                    for (let c = 0; c < 4; c++) if (matrix[r][c] === 0) emptyCells.push({r, c});
-                }
+// Monotonicity: penalise any row or column that isn't strictly monotone
+function monoScore(matrix) {
+  let score = 0;
+  for (let r = 0; r < 4; r++) {
+    let inc = 0, dec = 0;
+    for (let c = 0; c < 3; c++) {
+      const a = matrix[r][c], b = matrix[r][c+1];
+      if (a > b) dec += b - a;   // negative contribution
+      if (a < b) inc += a - b;
+    }
+    score += Math.max(inc, dec);
+  }
+  for (let c = 0; c < 4; c++) {
+    let inc = 0, dec = 0;
+    for (let r = 0; r < 3; r++) {
+      const a = matrix[r][c], b = matrix[r+1][c];
+      if (a > b) dec += b - a;
+      if (a < b) inc += a - b;
+    }
+    score += Math.max(inc, dec);
+  }
+  return score;
+}
 
-                if (emptyCells.length === 0) return evaluateBoardHeuristic(matrix);
+// Smoothness: penalise large differences between adjacent tiles (log2 diff)
+function smoothScore(matrix) {
+  let s = 0;
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      if (!matrix[r][c]) continue;
+      const v = Math.log2(matrix[r][c]);
+      if (c < 3 && matrix[r][c+1]) s -= Math.abs(v - Math.log2(matrix[r][c+1]));
+      if (r < 3 && matrix[r+1][c]) s -= Math.abs(v - Math.log2(matrix[r+1][c]));
+    }
+  }
+  return s;
+}
 
-                let spotsToTest = emptyCells;
-                
-                // Deep search combinatoric pruning: Limit spawn checking when deep in the chance tree
-                if (depth > 3 && emptyCells.length > 2) {
-                    spotsToTest = [emptyCells[0], emptyCells[emptyCells.length - 1]]; 
-                }
+function evaluateBoard(matrix) {
+  let weightScore = 0;
+  let emptyCount = 0;
+  let maxTile = 0;
+  let maxR = 0, maxC = 0;
 
-                let totalScore = 0;
-                for (let cell of spotsToTest) {
-                    matrix[cell.r][cell.c] = 2;
-                    totalScore += 0.9 * expectimax(matrix, depth - 1, false);
-                    
-                    matrix[cell.r][cell.c] = 4;
-                    totalScore += 0.1 * expectimax(matrix, depth - 1, false);
-                    
-                    matrix[cell.r][cell.c] = 0; // Revert mutation
-                }
-                return totalScore / spotsToTest.length;
-            }
-        }
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const val = matrix[r][c];
+      if (!val) { emptyCount++; continue; }
+      weightScore += val * WEIGHT_MATRIX[r][c];
+      if (val > maxTile) { maxTile = val; maxR = r; maxC = c; }
+    }
+  }
 
-        function getBestMove() {
-            let bestMoveDirection = -1;
-            let bestScore = -Infinity;
+  // Hard corner penalty
+  if (maxR !== 0 || maxC !== 0) weightScore -= maxTile * 200000;
 
-            let emptyCount = 0;
-            for(let r=0; r<4; r++) {
-                for(let c=0; c<4; c++) if(board[r][c] === 0) emptyCount++;
-            }
-            
-            // Dynamic Adaptive Depth Mapping (The closer to death, the harder it thinks)
-            let calculatedDepth = emptyCount > 6 ? 4 : (emptyCount > 2 ? 6 : 7); 
+  // Monotonicity (strong weight — key for 50k+)
+  const mono = monoScore(matrix) * 47;
 
-            for (let d = 0; d < 4; d++) {
-                let res = executeMoveFast(board, d);
-                if (res.changed) {
-                    let simulatedValue = expectimax(res.grid, calculatedDepth, true);
-                    if (simulatedValue > bestScore) {
-                        bestScore = simulatedValue;
-                        bestMoveDirection = d;
-                    }
-                }
-            }
-            return bestMoveDirection;
-        }
+  // Smoothness
+  const smooth = smoothScore(matrix) * 1600;
 
-        function stepAi() {
-            if (!aiRunning) return;
-            
-            let bestD = getBestMove();
-            if (bestD !== -1) {
-                let outcome = executeMoveFast(board, bestD);
-                board = outcome.grid;
-                score += outcome.scoreGained;
-                addRandomTile();
-                updateUI();
-                
-                if (canMove(board)) {
-                    // 0ms timeout removes blocking lag while keeping the browser rendering frames
-                    setTimeout(stepAi, 0); 
-                } else {
-                    aiRunning = false;
-                    overlay.classList.add('show');
-                }
-            } else {
-                aiRunning = false;
-                overlay.classList.add('show');
-            }
-        }
+  // Empty cells bonus (log scale so it doesn't dominate late game)
+  const empty = emptyCount > 0 ? Math.log2(emptyCount) * 27000 : 0;
 
-        document.getElementById('retry-btn').addEventListener('click', initGame);
+  return weightScore + mono + smooth + empty;
+}
 
-        const startBtn = document.getElementById('start-btn');
-        startBtn.addEventListener('click', () => {
-            startBtn.style.display = 'none';
-            document.getElementById('status-text').textContent = '> Neural Net active. Optimizing grid layout...';
-            initGame();
-        });
+// ─── EXPECTIMAX ───────────────────────────────────────────────────────────────
+function expectimax(matrix, depth, isChance) {
+  if (depth === 0) return evaluateBoard(matrix);
 
-        // Wait for user to start.
-    </script>
+  if (!isChance) {
+    let best = -Infinity, moved = false;
+    for (let d = 0; d < 4; d++) {
+      const res = executeMove(matrix, d);
+      if (!res.changed) continue;
+      moved = true;
+      const s = res.scoreGained + expectimax(res.grid, depth - 1, true);
+      if (s > best) best = s;
+    }
+    return moved ? best : evaluateBoard(matrix);
+  }
+
+  // Chance node
+  const empties = [];
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++)
+      if (!matrix[r][c]) empties.push([r, c]);
+
+  if (!empties.length) return evaluateBoard(matrix);
+
+  // Probabilistic pruning: sample a spread of cells rather than arbitrary first/last
+  let cells = empties;
+  if (depth > 2 && empties.length > 4) {
+    // Pick evenly-spaced samples for better board coverage
+    const step = empties.length / 3;
+    cells = [
+      empties[0],
+      empties[Math.floor(step)],
+      empties[Math.floor(step * 2)],
+      empties[empties.length - 1]
+    ];
+  }
+
+  let total = 0;
+  for (const [r, c] of cells) {
+    matrix[r][c] = 2;
+    total += 0.9 * expectimax(matrix, depth - 1, false);
+    matrix[r][c] = 4;
+    total += 0.1 * expectimax(matrix, depth - 1, false);
+    matrix[r][c] = 0;
+  }
+  return total / cells.length;
+}
+
+function getBestMove() {
+  let emptyCount = 0;
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++)
+      if (!board[r][c]) emptyCount++;
+
+  // Deeper search when board is tight — critical for pushing past 50k
+  const depth = emptyCount >= 10 ? 4
+              : emptyCount >= 6  ? 5
+              : emptyCount >= 3  ? 6
+              :                    7;
+
+  let bestDir = -1, bestScore = -Infinity;
+  for (let d = 0; d < 4; d++) {
+    const res = executeMove(board, d);
+    if (!res.changed) continue;
+    const s = res.scoreGained + expectimax(res.grid, depth, true);
+    if (s > bestScore) { bestScore = s; bestDir = d; }
+  }
+  return bestDir;
+}
+
+// ─── AI LOOP ──────────────────────────────────────────────────────────────────
+function scheduleStep() {
+  aiTimer = setTimeout(stepAi, 0);
+}
+
+function stepAi() {
+  if (!aiRunning) return;
+  const dir = getBestMove();
+  if (dir !== -1) {
+    const res = executeMove(board, dir);
+    board = res.grid;
+    score += res.scoreGained;
+    addRandomTile();
+    updateUI();
+
+    if (canMove(board)) {
+      scheduleStep();
+    } else {
+      aiRunning = false;
+      finalEl.textContent = score.toLocaleString();
+      overlay.classList.add('show');
+      setStatus('Engine halted.', 'warn');
+    }
+  } else {
+    aiRunning = false;
+    finalEl.textContent = score.toLocaleString();
+    overlay.classList.add('show');
+    setStatus('Engine halted.', 'warn');
+  }
+}
+
+function handleRestart() {
+  if (aiTimer) clearTimeout(aiTimer);
+  aiRunning = false;
+  initGame();
+}
+
+// ─── BUTTONS ──────────────────────────────────────────────────────────────────
+startBtn.addEventListener('click', () => {
+  startBtn.style.display = 'none';
+  restartBtn.style.display = '';
+  setStatus('Neural net active — optimizing…', 'active');
+  initGame();
+});
+
+restartBtn.addEventListener('click', handleRestart);
+document.getElementById('overlay-restart-btn').addEventListener('click', handleRestart);
+</script>
 </body>
 </html>
