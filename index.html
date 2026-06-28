@@ -381,72 +381,65 @@ function canMove(matrix) {
 
 // ─── HEURISTICS ───────────────────────────────────────────────────────────────
 
-// Monotonicity: penalise any row or column that isn't strictly monotone
-function monoScore(matrix) {
-  let score = 0;
-  for (let r = 0; r < 4; r++) {
-    let inc = 0, dec = 0;
-    for (let c = 0; c < 3; c++) {
-      const a = matrix[r][c], b = matrix[r][c+1];
-      if (a > b) dec += b - a;   // negative contribution
-      if (a < b) inc += a - b;
-    }
-    score += Math.max(inc, dec);
-  }
-  for (let c = 0; c < 4; c++) {
-    let inc = 0, dec = 0;
-    for (let r = 0; r < 3; r++) {
-      const a = matrix[r][c], b = matrix[r+1][c];
-      if (a > b) dec += b - a;
-      if (a < b) inc += a - b;
-    }
-    score += Math.max(inc, dec);
-  }
-  return score;
-}
-
-// Smoothness: penalise large differences between adjacent tiles (log2 diff)
-function smoothScore(matrix) {
-  let s = 0;
-  for (let r = 0; r < 4; r++) {
-    for (let c = 0; c < 4; c++) {
-      if (!matrix[r][c]) continue;
-      const v = Math.log2(matrix[r][c]);
-      if (c < 3 && matrix[r][c+1]) s -= Math.abs(v - Math.log2(matrix[r][c+1]));
-      if (r < 3 && matrix[r+1][c]) s -= Math.abs(v - Math.log2(matrix[r+1][c]));
-    }
-  }
-  return s;
-}
+// Precomputed log2 lookup — avoids Math.log2 inside the hot eval path
+const LOG2 = new Float32Array(131073);
+for (let i = 2; i <= 131072; i++) LOG2[i] = Math.log2(i);
 
 function evaluateBoard(matrix) {
   let weightScore = 0;
   let emptyCount = 0;
   let maxTile = 0;
   let maxR = 0, maxC = 0;
+  let smooth = 0;
 
+  // Precompute log2 of each cell once
+  const lg = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 4; c++) {
       const val = matrix[r][c];
       if (!val) { emptyCount++; continue; }
+      lg[r][c] = LOG2[val] || Math.log2(val);
       weightScore += val * WEIGHT_MATRIX[r][c];
       if (val > maxTile) { maxTile = val; maxR = r; maxC = c; }
     }
   }
 
-  // Hard corner penalty
-  if (maxR !== 0 || maxC !== 0) weightScore -= maxTile * 200000;
+  // Smoothness — log2 diff between adjacent tiles (cheap with precomputed lg)
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      if (!matrix[r][c]) continue;
+      if (c < 3 && matrix[r][c+1]) smooth -= Math.abs(lg[r][c] - lg[r][c+1]);
+      if (r < 3 && matrix[r+1][c]) smooth -= Math.abs(lg[r][c] - lg[r+1][c]);
+    }
+  }
 
-  // Monotonicity (strong weight — key for 50k+)
-  const mono = monoScore(matrix) * 47;
+  // Monotonicity — computed in log2 space so large tiles don't dominate
+  let mono = 0;
+  for (let r = 0; r < 4; r++) {
+    let inc = 0, dec = 0;
+    for (let c = 0; c < 3; c++) {
+      const a = lg[r][c], b = lg[r][c+1];
+      if (a > b) dec += b - a; else inc += a - b;
+    }
+    mono += Math.max(inc, dec);
+  }
+  for (let c = 0; c < 4; c++) {
+    let inc = 0, dec = 0;
+    for (let r = 0; r < 3; r++) {
+      const a = lg[r][c], b = lg[r+1][c];
+      if (a > b) dec += b - a; else inc += a - b;
+    }
+    mono += Math.max(inc, dec);
+  }
 
-  // Smoothness
-  const smooth = smoothScore(matrix) * 1600;
+  // Hard corner penalty — must outweigh the weight matrix's top value (1<<17 = 131072)
+  if (maxR !== 0 || maxC !== 0) weightScore -= maxTile * 600000;
 
-  // Empty cells bonus (log scale so it doesn't dominate late game)
-  const empty = emptyCount > 0 ? Math.log2(emptyCount) * 27000 : 0;
-
-  return weightScore + mono + smooth + empty;
+  // Tuned weights: mono in log space is small (~0–20), scale up to matter
+  return weightScore
+    + mono   * 47000    // log2-space mono needs a large multiplier
+    + smooth * 3000     // smooth in log2 units ~0–30
+    + emptyCount * 20000; // direct count — no log, keeps it strong late game
 }
 
 // ─── EXPECTIMAX ───────────────────────────────────────────────────────────────
@@ -473,17 +466,12 @@ function expectimax(matrix, depth, isChance) {
 
   if (!empties.length) return evaluateBoard(matrix);
 
-  // Probabilistic pruning: sample a spread of cells rather than arbitrary first/last
+  // Probabilistic pruning: sample spread of cells for coverage, prune early
   let cells = empties;
-  if (depth > 2 && empties.length > 4) {
-    // Pick evenly-spaced samples for better board coverage
-    const step = empties.length / 3;
-    cells = [
-      empties[0],
-      empties[Math.floor(step)],
-      empties[Math.floor(step * 2)],
-      empties[empties.length - 1]
-    ];
+  if (empties.length > 3) {
+    const n = depth >= 5 ? 3 : 2; // fewer samples at shallow depth
+    const step = (empties.length - 1) / (n - 1);
+    cells = Array.from({length: n}, (_, i) => empties[Math.round(i * step)]);
   }
 
   let total = 0;
@@ -503,11 +491,11 @@ function getBestMove() {
     for (let c = 0; c < 4; c++)
       if (!board[r][c]) emptyCount++;
 
-  // Deeper search when board is tight — critical for pushing past 50k
-  const depth = emptyCount >= 10 ? 4
-              : emptyCount >= 6  ? 5
-              : emptyCount >= 3  ? 6
-              :                    7;
+  // Shallow when board is open (fast), deep only when tight
+  const depth = emptyCount >= 8 ? 3
+              : emptyCount >= 4 ? 5
+              : emptyCount >= 2 ? 6
+              :                   7;
 
   let bestDir = -1, bestScore = -Infinity;
   for (let d = 0; d < 4; d++) {
